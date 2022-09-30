@@ -1,3 +1,5 @@
+package API;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -5,12 +7,12 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public abstract class Server {
+public abstract class Link {
 	
 	ServerSocket serverSocket;
 	int port;
 		
-	public Server(int port) {
+	public Link(int port) {
 		this.port = port;
 	}
 	
