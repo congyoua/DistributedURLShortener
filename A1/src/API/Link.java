@@ -10,7 +10,7 @@ import java.net.Socket;
 public abstract class Link {
 	
 	ServerSocket serverSocket;
-	int port;
+	public int port;
 		
 	public Link(int port) {
 		this.port = port;
