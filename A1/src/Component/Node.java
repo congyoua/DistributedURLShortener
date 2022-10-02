@@ -39,9 +39,6 @@ public class Node extends Link {
 
             String input = in.readLine();
 
-
-
-
             if(verbose)System.out.println("first line: "+input);
             Pattern pput = Pattern.compile("^PUT\\s+/\\?short=(\\S+)&long=(\\S+)\\s+(\\S+)$");
             Matcher mput = pput.matcher(input);
