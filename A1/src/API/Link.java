@@ -51,43 +51,47 @@ public abstract class Link {
 		return new Runnable(){
 			@Override
 			public void run() {	
-				try {
-					System.out.println("Receive connection");
-					PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-					BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-					
-					String message = in.readLine();
-					// Store everything in a string list for now
-					String[] command = message.split(" ");
-					System.out.println(command[0]);
-					
-					switch (command[0]) {
-						case "SHUTDOWN":
-							shutdown();
-							break;
-						default:
-							System.out.println("Others");
-					}
-					
-					out.println("Complete");
-					
-					in.close();
-			        out.close();
-			        socket.close();
-			        System.out.println("Socket closed");
-				} catch (IOException e) {
-					System.err.println("Read write error : " + e.getMessage());
-				}
+				handle(socket);
 			}
 		};
 	}
+
+	public void handle(Socket socket){
+		try {
+			System.out.println("Receive connection");
+			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+			String message = in.readLine();
+			// Store everything in a string list for now
+			String[] command = message.split(" ");
+			System.out.println(command[0]);
+
+			switch (command[0]) {
+				case "SHUTDOWN":
+					shutdown();
+					break;
+				default:
+					System.out.println("Others");
+			}
+
+			out.println("Complete");
+
+			in.close();
+			out.close();
+			socket.close();
+			System.out.println("Socket closed");
+		} catch (IOException e) {
+			System.err.println("Read write error : " + e.getMessage());
+		}
+	}
 	
-	public static void sendToAnother(Socket socket, String code, String content) {
+	public static void sendMsg(Socket socket, String code, String content) {
 		try {
 			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 			
-			out.println(code+" "+content);
+			out.println(code+"\n"+content);
 			String res = in.readLine();
 			System.out.println("Response: "+res);
 			in.close();
@@ -99,14 +103,14 @@ public abstract class Link {
 	
 	
 	// Send something to another socket and receive response
-	public static void sendToAnother(String ip, int port, String code, String content) {
+	public static void sendMsg(String ip, int port, String code, String content) {
 		try {
 			Socket clientSocket = new Socket(ip, port);
 			
 			BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 			PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
 			
-			out.println(code+" "+content);
+			out.println(code+"\n"+content);
 			String res = in.readLine();
 			System.out.println("Response: "+res);
 			in.close();
@@ -117,28 +121,13 @@ public abstract class Link {
 		
 	}
 	
-	public static void sendFile(Socket connect, String name) {
+	public static void sendPage(Socket connect, File file) {
 		try {			
 			BufferedReader in = new BufferedReader(new InputStreamReader(connect.getInputStream()));
 			PrintWriter out = new PrintWriter(connect.getOutputStream(), true);
 			BufferedOutputStream dataOut = new BufferedOutputStream(connect.getOutputStream());
-			
-			File file = new File(name);
-			int fileLength = (int) file.length();
-			String contentMimeType = "text/html";
-			//read content to return to client
-			byte[] fileData = readFileData(file, fileLength);
-				
-			out.println("HTTP/1.1 200 OK");
-			out.println("Server: Java HTTP Server/Shortner : 1.0");
-			out.println("Date: " + new Date());
-			out.println("Content-type: " + contentMimeType);
-			out.println("Content-length: " + fileLength);
-			out.println(); 
-			out.flush(); 
 
-			dataOut.write(fileData, 0, fileLength);
-			dataOut.flush();
+			sendHTML(file,"HTTP/1.1 200 OK",out,dataOut);
 			
 			in.close();
 			out.close();
@@ -147,7 +136,46 @@ public abstract class Link {
 			System.err.println("Socket error : " + e.getMessage());
 		}
 	}
-	
+
+	public static void sendHTML(File file, String status, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
+
+		int fileLength = (int) file.length();
+		String contentMimeType = "text/html";
+		//read content to return to client
+		byte[] fileData = readFileData(file, fileLength);
+
+		out.println(status);
+		out.println("Server: Java HTTP Server/Shortner : 1.0");
+		out.println("Date: " + new Date());
+		out.println("Content-type: " + contentMimeType);
+		out.println("Content-length: " + fileLength);
+		out.println();
+		out.flush();
+
+		dataOut.write(fileData, 0, fileLength);
+		dataOut.flush();
+	}
+
+	public static void sendHTML(File file, String status, String redirect, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
+
+		int fileLength = (int) file.length();
+		String contentMimeType = "text/html";
+		//read content to return to client
+		byte[] fileData = readFileData(file, fileLength);
+
+		out.println(status);
+		out.println("Location: " + redirect);
+		out.println("Server: Java HTTP Server/Shortner : 1.0");
+		out.println("Date: " + new Date());
+		out.println("Content-type: " + contentMimeType);
+		out.println("Content-length: " + fileLength);
+		out.println();
+		out.flush();
+
+		dataOut.write(fileData, 0, fileLength);
+		dataOut.flush();
+	}
+
 	private static byte[] readFileData(File file, int fileLength) throws IOException {
 		FileInputStream fileIn = null;
 		byte[] fileData = new byte[fileLength];

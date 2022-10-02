@@ -1,0 +1,28 @@
+<html>
+	<head>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+		<script type="text/javascript">
+        function put(){
+			var long = $('#long').val();
+			var short = $('#short').val();
+			if (long.indexOf("http") >= 0){
+				$.ajax({url: "/?short="+short+"&long="+long, type: 'PUT'});
+			}else{
+				console.alert("Please add http or https to LongURL.");
+			}
+        }
+    </script>
+
+	</head>
+
+	<body>
+		<div>URLShortener Test</div>
+		<form id="form" action="/">
+			<br>Short:<input type="text" name="short" id="short"><br>
+			<br>Long:<input type="text" name="long" id="long" value="http://"><br>
+		</form>
+		<input type="button" onclick="put();" value="Submit" />
+
+	</body>
+
+</html>
