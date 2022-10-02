@@ -86,24 +86,29 @@ public abstract class Link {
 		}
 	}
 	
-	public static void sendMsg(Socket socket, String code, String content) {
+	public static String sendMsg(Socket socket, String code, String content) {
+		String res = "";
 		try {
 			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 			
 			out.println(code+"\n"+content);
-			String res = in.readLine();
+			code = in.readLine();
+			res = in.readLine();
+			System.out.println("Code: "+code);
 			System.out.println("Response: "+res);
 			in.close();
 	        out.close();
 		} catch (IOException e) {
 			System.err.println("Socket error : " + e.getMessage());
 		}
+			return res;
 	}
 	
 	
 	// Send something to another socket and receive response
-	public static void sendMsg(String ip, int port, String code, String content) {
+	public static String sendMsg(String ip, int port, String code, String content) {
+		String res = "";
 		try {
 			Socket clientSocket = new Socket(ip, port);
 			
@@ -111,14 +116,18 @@ public abstract class Link {
 			PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
 			
 			out.println(code+"\n"+content);
-			String res = in.readLine();
+			code = in.readLine();
+			res = in.readLine();
+			System.out.println("Code: "+code);
 			System.out.println("Response: "+res);
+
 			in.close();
 	        out.close();
+			return res;
 		} catch (IOException e) {
 			System.err.println("Socket error : " + e.getMessage());
 		}
-		
+		return res;
 	}
 	
 	public static void sendPage(Socket connect, File file) {

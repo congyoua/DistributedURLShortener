@@ -6,7 +6,12 @@
 			var long = $('#long').val();
 			var short = $('#short').val();
 			if (long.indexOf("http") >= 0){
-				$.ajax({url: "/?short="+short+"&long="+long, type: 'PUT'});
+				$.ajax("/?short="+short+"&long="+long,{type: 'PUT',
+				success: function (resp) {
+					console.log(resp)
+					$('html').html(resp);
+				}
+				});
 			}else{
 				console.alert("Please add http or https to LongURL.");
 			}

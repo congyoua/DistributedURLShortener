@@ -22,15 +22,15 @@ public class Database extends Link {
 		initialize();
 	}
 	
-	private Connection connect() {	
+	private Connection connect() {
 		Connection c = null;
 		try {
 			Class.forName("org.sqlite.JDBC");
 			c = DriverManager.getConnection("jdbc:sqlite:./src/Database/test.db");
+			System.out.println("Connected to database");
 		} catch (Exception e) {
 			System.out.println("Database error: " + e);
 		}
-		System.out.println("Connected to database");
 		return c;
 	}
 	
