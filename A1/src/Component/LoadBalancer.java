@@ -36,8 +36,8 @@ public class LoadBalancer {
         try (Scanner scanner = new Scanner(new File(file))) {
             scanner.useDelimiter("[:\n]"); // Split host:port pairs
             while (scanner.hasNext()) {
-                String h = scanner.next();
-                int p = Integer.parseInt(scanner.next());
+                String h = scanner.next().strip();
+                int p = Integer.parseInt(scanner.next().strip());
                 serverArray.add(new ServerInfo(h, p));
                 numServers++;
             }
@@ -49,8 +49,8 @@ public class LoadBalancer {
         LoadBalancerInfo loadBalancerInfo = new LoadBalancerInfo(serverArray, numServers);
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Load balancer started.\n"
-                               + "Listening for connections on port " + port + "...\n");
+            System.out.println("Load balancer started\n"
+                               + "Listening for connections on port " + port);
             while (true) {
                 Socket client = serverSocket.accept();
                 Thread thread = new Thread(new LoadBalancerThread(loadBalancerInfo, client));

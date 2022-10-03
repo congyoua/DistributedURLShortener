@@ -49,7 +49,7 @@ public class LoadBalancerInfo {
      * @param port the port number of the server
      */
     synchronized public void addServer(String host, int port) {
-        if (searchServer(host, port) != -1) {
+        if (searchServer(host, port) == -1) {
             this.serverArray.add(new ServerInfo(host, port));
             this.numServers++;
         }
@@ -63,24 +63,31 @@ public class LoadBalancerInfo {
      * @param port the port number of the server
      */
     synchronized public void removeServer(String host, int port) {
-        int index = searchServer(host, port);
-        if (index != -1) {
-            this.serverArray.remove(index);
-            if (this.serverIndex >= index) { // Adjust index for the removed server
+        int removeIndex = searchServer(host, port);
+        if (removeIndex != -1) {
+            this.serverArray.remove(removeIndex);
+            this.numServers--;
+            if (this.numServers == 0) {
+                this.serverIndex = 0;
+            } else if (this.serverIndex > removeIndex) { // Adjust index for the removed server
                 this.serverIndex--;
             }
         }
     }
 
     /**
-     * Chooses a server to distribute an incoming request to.
+     * Selects a server to distribute a request to.
+     * Returns null if there are no servers available.
      * Load balancing method: round-robin
      *
-     * @return the information of the chosen server
+     * @return the information of the selected server
      */
-    synchronized public ServerInfo chooseServer() {
-        ServerInfo server = serverArray.get(serverIndex);
-        serverIndex = (serverIndex + 1) % numServers;
+    synchronized public ServerInfo selectServer() {
+        if (this.numServers == 0) {
+            return null;
+        }
+        ServerInfo server = this.serverArray.get(this.serverIndex);
+        this.serverIndex = (this.serverIndex + 1) % this.numServers;
         return server;
     }
 }
