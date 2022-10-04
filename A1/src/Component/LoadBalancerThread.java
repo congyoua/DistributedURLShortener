@@ -2,6 +2,8 @@ package Component;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A thread object for LoadBalancer.
@@ -9,7 +11,8 @@ import java.net.Socket;
  */
 public class LoadBalancerThread implements Runnable {
 
-    static final int MAX_BUF_SIZE = 8192; // Maximum char buffer size
+    static final int MAX_DATA_LEN = 8192; // Maximum char
+
     LoadBalancerInfo loadBalancerInfo;
     Socket client, server;
 
@@ -22,7 +25,7 @@ public class LoadBalancerThread implements Runnable {
     public LoadBalancerThread(LoadBalancerInfo loadBalancerInfo, Socket client) {
         this.loadBalancerInfo = loadBalancerInfo;
         this.client = client;
-        this.server = null;
+        server = null;
     }
 
     /**
@@ -31,24 +34,23 @@ public class LoadBalancerThread implements Runnable {
      * from its server list.
      */
     private void selectServer() {
-        boolean isSelecting = true;
-        while (isSelecting) {
-            ServerInfo serverInfo = this.loadBalancerInfo.selectServer();
-            if (serverInfo == null) {
+        while (true) {
+            NodeAddress nodeAddress = loadBalancerInfo.selectServer();
+            if (nodeAddress == null) {
                 System.err.println("Could not distribute request. No servers are available.");
-                isSelecting = false;
+                break;
             } else {
-                String host = serverInfo.getHost();
-                int port = serverInfo.getPort();
+                String host = nodeAddress.host();
+                int port = nodeAddress.port();
                 try {
-                    this.server = new Socket(host, port);
+                    server = new Socket(host, port);
                     System.out.println("Sending request to " + host + ":" + port);
-                    isSelecting = false;
+                    break;
                 } catch (IOException e) {
                     System.err.println("Could not connect to " + host + ":" + port
-                            + ", sending request to another server.");
+                                       + ", sending request to another server.");
                     System.out.println("Removing " + host + ":" + port + " from server list");
-                    this.loadBalancerInfo.removeServer(host, port);
+                    loadBalancerInfo.removeServer(host, port);
                 }
             }
         }
@@ -57,45 +59,149 @@ public class LoadBalancerThread implements Runnable {
     /**
      * Closes the sockets to the client and server.
      */
-    private void closeSockets() {
-        try {
-            this.client.close();
-            if (this.server != null) {
-                this.server.close();
-            }
-        } catch (IOException e) {
-            System.err.println("Error: " + e.getMessage());
+    private void closeSockets() throws IOException {
+        client.close();
+        if (server != null) {
+            server.close();
         }
     }
 
     /**
-     * Establishes a connection between the client and an appropriate server.
+     * Returns the first line from the given character array as a string.
+     * If a line is not found, then a string containing the specified number
+     * of characters from the array is returned.
+     * A line is terminated with a '\n' or '\r'.
+     *
+     * @param data   the data to parse
+     * @param length the length of the data
+     * @return       the first line
+     */
+    private String extractFirstLine(char[] data, int length) {
+        for (int i = 0; i < length; i++) {
+            if (data[i] == '\n' || data[i] == '\r') {
+                return String.valueOf(data, 0, i);
+            }
+        }
+        return String.valueOf(data, 0, length);
+    }
+
+    /**
+     * Returns whether the given string contains an illegal combination of
+     * characters.
+     *
+     * @param str the string to check
+     * @return    whether the string contains illegal combinations
+     */
+    private boolean containsIgnore(String str) {
+        return (str.contains("favicon.ico") || str.contains("short=") || str.contains("long="));
+    }
+
+    /**
+     * Sends data to the client.
+     *
+     * @param data         the data to send
+     * @param length       the length of the data
+     * @throws IOException if sending data to the client fails
+     */
+    private void sendToClient(char[] data, int length) throws IOException {
+        BufferedWriter out = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
+        out.write(data, 0, length);
+        out.flush();
+    }
+
+    /**
+     * Receives data from the client.
+     *
+     * @return             the data from the client and its length
+     * @throws IOException if receiving data from the client fails
+     */
+    private CharArray receiveFromClient() throws IOException {
+        char[] data = new char[MAX_DATA_LEN];
+        int length;
+        BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+        length = in.read(data, 0, MAX_DATA_LEN);
+        return new CharArray(data, length);
+    }
+
+    /**
+     * Sends data to the server.
+     *
+     * @param data         the data to send
+     * @param length       the length of the data
+     * @throws IOException if sending data to the server fails
+     */
+    private void sendToServer(char[] data, int length) throws IOException {
+        if (server == null) {
+            throw new IOException("Server socket is not set");
+        }
+        BufferedWriter out = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
+        out.write(data, 0, length);
+        out.flush();
+    }
+
+    /**
+     * Receives data from the server.
+     *
+     * @return             the data from the server and its length
+     * @throws IOException if receiving data from the server fails
+     */
+    private CharArray receiveFromServer() throws IOException {
+        if (server == null) {
+            throw new IOException("Server socket is not set");
+        }
+        char[] data = new char[MAX_DATA_LEN];
+        int length;
+        BufferedReader in = new BufferedReader(new InputStreamReader(server.getInputStream()));
+        length = in.read(data, 0, MAX_DATA_LEN);
+        return new CharArray(data, length);
+    }
+
+    /**
+     * Handles distributing the client's request, sending the client/servers
+     * data, and receiving the client/servers data.
+     * Caches redirect.
      */
     @Override
     public void run() {
-        this.selectServer();
-        if (this.server != null) {
-            try (BufferedReader clientIn = new BufferedReader(new InputStreamReader(this.client.getInputStream()));
-                 BufferedWriter clientOut = new BufferedWriter(new OutputStreamWriter(this.client.getOutputStream()));
-                 BufferedReader serverIn = new BufferedReader(new InputStreamReader(server.getInputStream()));
-                 BufferedWriter serverOut = new BufferedWriter(new OutputStreamWriter(server.getOutputStream())))
-            {
-                char[] buf = new char[MAX_BUF_SIZE];
-                int numCharRead = 0;
+        try {
+            CharArray input = receiveFromClient();
+            String firstLine = extractFirstLine(input.array(), input.length());
 
-                // Receive request from the client and send it to the server
-                numCharRead = clientIn.read(buf, 0, MAX_BUF_SIZE);
-                serverOut.write(buf, 0, numCharRead);
-                serverOut.flush();
+            Pattern pattern = Pattern.compile("^PUT\\s+/\\?short=\\S+&long=\\S+\\s+\\S+$");
+            Matcher matcher = pattern.matcher(firstLine);
 
-                // Receive response from the server and send it to the client
-                numCharRead = serverIn.read(buf, 0, MAX_BUF_SIZE);
-                clientOut.write(buf, 0, numCharRead);
-                clientOut.flush();
-            } catch (IOException e) {
-                System.err.println("Error: " + e.getMessage());
+            if (matcher.matches()) { // PUT request
+                selectServer();
+                sendToServer(input.array(), input.length());
+                CharArray output = receiveFromServer();
+                sendToClient(output.array(), output.length());
+            } else {
+                pattern = Pattern.compile("^\\S+\\s+/(\\S+)\\s+\\S+$");
+                matcher = pattern.matcher(firstLine);
+                if (matcher.matches() && !containsIgnore(firstLine)) { // GET request
+                    String shortURL = matcher.group(1);
+                    if (loadBalancerInfo.isCached(shortURL)) { // Cached
+                        System.out.println("Loading response from cache");
+                        CharArray output = loadBalancerInfo.fetchFromCache(shortURL);
+                        sendToClient(output.array(), output.length());
+                    } else { // Not cached
+                        System.out.println("Storing response to cache");
+                        selectServer();
+                        sendToServer(input.array(), input.length());
+                        CharArray output = receiveFromServer();
+                        sendToClient(output.array(), output.length());
+                        loadBalancerInfo.storeToCache(shortURL, output);
+                    }
+                } else {
+                    selectServer();
+                    sendToServer(input.array(), input.length());
+                    CharArray output = receiveFromServer();
+                    sendToClient(output.array(), output.length());
+                }
             }
+            this.closeSockets();
+        } catch (IOException e) {
+            System.err.println("Error: " + e.getMessage());
         }
-        this.closeSockets();
     }
 }

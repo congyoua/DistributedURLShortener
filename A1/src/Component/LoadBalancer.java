@@ -30,7 +30,7 @@ public class LoadBalancer {
             file = args[1];
         }
 
-        ArrayList<ServerInfo> serverArray = new ArrayList<>();
+        ArrayList<NodeAddress> serverArray = new ArrayList<>();
         int numServers = 0;
 
         try (Scanner scanner = new Scanner(new File(file))) {
@@ -38,7 +38,7 @@ public class LoadBalancer {
             while (scanner.hasNext()) {
                 String h = scanner.next().strip();
                 int p = Integer.parseInt(scanner.next().strip());
-                serverArray.add(new ServerInfo(h, p));
+                serverArray.add(new NodeAddress(h, p));
                 numServers++;
             }
         } catch (FileNotFoundException e) {
