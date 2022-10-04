@@ -30,7 +30,7 @@ public abstract class Link {
 		
 	public Link(int port) {
 		this.port = port;
-		this.executor = Executors.newCachedThreadPool();
+		this.executor = Executors.newFixedThreadPool(8);
 	}
 	
 	// Start the server
