@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>URL Shortener Admin Tool</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+</head>
+<body>
+    <h3>URL Shortener Admin Tool</h3>
+    <input type="button" value="Start monitoring system" onclick="start();">
+    <br><br>
+    <script type="text/javascript">
+        function start() {
+            $.get("/start", function(response) {
+		        document.open()
+		        document.write(response)
+		        document.close()
+			});
+        }
+        function add(){
+			var ip = $('#ip').val();
+			var typ = $('#typ').val();
+			$.ajax("/?code=add&ip="+ip+"&type="+typ,{type: 'PUT',
+			success: function () {
+				console.log("Addition request sent")
+			}
+			});
+        }
+        function remove(){
+			var ip = $('#ip').val();
+			var typ = $('#typ').val();
+			$.ajax("/?code=remove&ip="+ip+"&type="+typ,{type: 'PUT',
+			success: function () {
+				console.log("Remove request sent")
+			}
+			});
+        }
+    </script>
+    <div>Scale</div>
+	<form id="form" action="/">
+		<br>IP:<input type="text" name="ip" id="ip"><br>
+		<br>Type:<select id="typ">
+  			<option value="Node" selected>URLShortner</option>
+  			<option value="DB">Database</option>
+  			<option value="LB">LoadBalancer</option>
+		</select><br>
+	</form>
+	<br>
+	<input type="button" onclick="add();" value="Add" />
+	<input type="button" onclick="remove();" value="Remove" />
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>URL Shortener Admin Tool</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+</head>
+<body>
+    <h3>URL Shortener Admin Tool</h3>
+    <input type="button" value="Stop monitoring system" onclick="stop();">
+    <input type="button" value="Refresh" onclick="refresh();">
+    <label for="auto">
+        <input type="checkbox" id="auto" name="auto-refresh" value="auto" onclick="auto()"/>
+        Auto-Refresh</label>
+    <div id="status"></div>
+    <script type="text/javascript">
+        var myInterval;
+        $(window).on('load',function(){refresh();});
+        function stop() {
+            clearInterval(myInterval);
+            $.get("/stop", function(response) {
+                document.open()
+                document.write(response)
+                document.close()
+            });
+        }
+        function refresh(){
+            $.ajax({
+            url:'/refresh',
+            type: 'GET',
+            success: function (resp) {
+                console.log(resp)
+                $("#status").html(resp);
+            }});
+        }
+        function auto(){
+            if($('#auto').is(':checked')){
+                myInterval = setInterval(function(){refresh();}, 2000);
+            } else {
+                clearInterval(myInterval);
+            }
+
+        }
+
+        </script>
+    </body>
+</html>

@@ -7,13 +7,13 @@
 			var short = $('#short').val();
 			if (long.indexOf("http") >= 0){
 				$.ajax("/?short="+short+"&long="+long,{type: 'PUT',
-				success: function (resp) {
-					console.log(resp)
-					$('html').html(resp);
+				complete: function (resp) {
+					console.log(resp.responseText);
+					$('html').html(resp.responseText);
 				}
 				});
 			}else{
-				console.alert("Please add http or https to LongURL.");
+				console.error("Please add http or https to your long URL.");
 			}
         }
     </script>

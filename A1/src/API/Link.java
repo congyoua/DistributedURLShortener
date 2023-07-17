@@ -1,44 +1,44 @@
 package API;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import Component.Address;
+
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * An abstract api class with multithreaded socket connection support
+ * and useful functions & apis for servers and clients
+ */
 public abstract class Link {
-	
+
 	protected ServerSocket serverSocket;
 	protected ExecutorService executor;
 	public int port;
-	
-	static final File WEB_ROOT = new File(".");
-	static final String DEFAULT_FILE = "index.html";
-	static final String FILE_NOT_FOUND = "404.html";
-	static final String METHOD_NOT_SUPPORTED = "not_supported.html";
-	static final String REDIRECT_RECORDED = "redirect_recorded.html";
-	static final String REDIRECT = "redirect.html";
-	static final String NOT_FOUND = "notfound.html";
-	static final String DATABASE = "database.txt";
-		
+
+	public static final boolean verbose = false;
+
+	/**
+	 * Server initialization
+	 * @param port
+	 */
 	public Link(int port) {
 		this.port = port;
 		this.executor = Executors.newFixedThreadPool(8);
 	}
-	
-	// Start the server
+
+	/**
+	 * Start the server
+	 */
 	public void start() {
 		try {
 			this.serverSocket = new ServerSocket(this.port);
-			System.out.println("Server started at " + this.port);
-			
+			if(verbose)System.out.println("Server started at " + this.port);
+
 			while (true) {
 				this.executor.execute(handler(this.serverSocket.accept()));
 			}
@@ -46,98 +46,98 @@ public abstract class Link {
 			System.err.println("Server Connection error : " + e.getMessage());
 		}
 	}
-	
+
+	/**
+	 * Multithreaded handler
+	 * @param socket
+	 * @return
+	 */
 	public Runnable handler(Socket socket){
 		return new Runnable(){
 			@Override
-			public void run() {	
+			public void run() {
 				handle(socket);
 			}
 		};
 	}
 
+	/**
+	 * Main handle function
+	 * @param socket client's socket
+	 */
 	public void handle(Socket socket){
 		try {
-			System.out.println("Receive connection");
-			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-
-			String message = in.readLine();
-			// Store everything in a string list for now
-			String[] command = message.split(" ");
-			System.out.println(command[0]);
-
-			switch (command[0]) {
-				case "SHUTDOWN":
-					shutdown();
-					break;
-				default:
-					System.out.println("Others");
-			}
-
-			out.println("Complete");
-
-			in.close();
-			out.close();
+			if(verbose)System.out.println("Receive connection");
 			socket.close();
-			System.out.println("Socket closed");
+			if(verbose)System.out.println("Socket closed");
 		} catch (IOException e) {
 			System.err.println("Read write error : " + e.getMessage());
 		}
 	}
-	
+
+	/**
+	 * Client API, send a message to specific socket
+	 * @return Server's response
+	 */
 	public static String sendMsg(Socket socket, String code, String content) {
 		String res = "";
 		try {
 			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-			
-			out.println(code+"\n"+content);
-			code = in.readLine();
-			res = in.readLine();
-			System.out.println("Code: "+code);
-			System.out.println("Response: "+res);
-			in.close();
-	        out.close();
-		} catch (IOException e) {
-			System.err.println("Socket error : " + e.getMessage());
-		}
-			return res;
-	}
-	
-	
-	// Send something to another socket and receive response
-	public static String sendMsg(String ip, int port, String code, String content) {
-		String res = "";
-		try {
-			Socket clientSocket = new Socket(ip, port);
-			
-			BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-			PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-			
-			out.println(code+"\n"+content);
-			code = in.readLine();
-			res = in.readLine();
-			System.out.println("Code: "+code);
-			System.out.println("Response: "+res);
 
+			out.println(code+"\n"+content);
+			if(verbose)System.out.println("Sent: "+code);
+			code = in.readLine();
+			res = in.readLine();
+			if(verbose)System.out.println("Received Code: "+code);
+			if(verbose)System.out.println("Received String: "+res);
 			in.close();
-	        out.close();
-			return res;
+			out.close();
 		} catch (IOException e) {
 			System.err.println("Socket error : " + e.getMessage());
 		}
 		return res;
 	}
-	
+
+	/**
+	 * Client API, send a message to specific socket using ip/port
+	 * @return Server's response
+	 */
+	public static String sendMsg(String ip, int port, String code, String content) {
+		String res = "";
+		try {
+			Socket clientSocket = new Socket(ip, port);
+
+			BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+			PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+
+			out.println(code+"\n"+content);
+			if(verbose)System.out.println("Sent: "+code);
+			code = in.readLine();
+			res = in.readLine();
+			if(verbose)System.out.println("Received Code: "+code);
+			if(verbose)System.out.println("Received String: "+res);
+
+			in.close();
+			out.close();
+			return res;
+		} catch (IOException e) {
+			System.out.println("Cannot Reach out to: "+ip+":"+port);
+		}
+		return res;
+	}
+
+	/**
+	 * Client API, send a static webpage
+	 */
 	public static void sendPage(Socket connect, File file) {
-		try {			
+		try {
 			BufferedReader in = new BufferedReader(new InputStreamReader(connect.getInputStream()));
 			PrintWriter out = new PrintWriter(connect.getOutputStream(), true);
 			BufferedOutputStream dataOut = new BufferedOutputStream(connect.getOutputStream());
 
 			sendHTML(file,"HTTP/1.1 200 OK",out,dataOut);
-			
+
 			in.close();
 			out.close();
 			connect.close(); // we close socket connection
@@ -146,15 +146,18 @@ public abstract class Link {
 		}
 	}
 
+	/**
+	 * Client API, send HTML file with different status
+	 */
 	public static void sendHTML(File file, String status, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
 
 		int fileLength = (int) file.length();
 		String contentMimeType = "text/html";
 		//read content to return to client
-		byte[] fileData = readFileData(file, fileLength);
+		byte[] fileData = Utils.readFileData(file, fileLength);
 
 		out.println(status);
-		out.println("Server: Java HTTP Server/Shortner : 1.0");
+		out.println("Server: Java HTTP Server/Shortener : 1.0");
 		out.println("Date: " + new Date());
 		out.println("Content-type: " + contentMimeType);
 		out.println("Content-length: " + fileLength);
@@ -165,16 +168,19 @@ public abstract class Link {
 		dataOut.flush();
 	}
 
+	/**
+	 * Client API, send HTML file for redirect
+	 */
 	public static void sendHTML(File file, String status, String redirect, PrintWriter out, BufferedOutputStream dataOut) throws IOException {
 
 		int fileLength = (int) file.length();
 		String contentMimeType = "text/html";
 		//read content to return to client
-		byte[] fileData = readFileData(file, fileLength);
+		byte[] fileData = Utils.readFileData(file, fileLength);
 
 		out.println(status);
 		out.println("Location: " + redirect);
-		out.println("Server: Java HTTP Server/Shortner : 1.0");
+		out.println("Server: Java HTTP Server/Shortener : 1.0");
 		out.println("Date: " + new Date());
 		out.println("Content-type: " + contentMimeType);
 		out.println("Content-length: " + fileLength);
@@ -185,21 +191,39 @@ public abstract class Link {
 		dataOut.flush();
 	}
 
-	private static byte[] readFileData(File file, int fileLength) throws IOException {
-		FileInputStream fileIn = null;
-		byte[] fileData = new byte[fileLength];
-		
-		try {
-			fileIn = new FileInputStream(file);
-			fileIn.read(fileData);
-		} finally {
-			if (fileIn != null) 
-				fileIn.close();
+	/**
+	 * Client API, send latest info to monitoring page
+	 */
+	public static void sendDiv(PrintWriter out, BufferedOutputStream dataOut, ArrayList<Address> AllList, ArrayList<Address> LBList, ArrayList<Address> DBList, ArrayList<Address> NodeList) throws IOException {
+		StringWriter str = new StringWriter();
+		PrintWriter writer = new PrintWriter(str);
+		writer.println("<h4>Servers:</h4>");
+		for(Address add:AllList){
+			if(add.type().equals("LB"))writer.println("<pre>"+add.host()+":"+add.port()+"    Type: Load Balancer"+"    Status: "+(LBList.contains(add)?"Alive":"No Response")+"</pre>");
+			if(add.type().equals("NODE"))writer.println("<pre>"+add.host()+":"+add.port()+"    Type: URL Shortener"+"    Status: "+(NodeList.contains(add)?"Alive":"No Response")+"</pre>");
+			if(add.type().equals("DB"))writer.println("<pre>"+add.host()+":"+add.port()+"    Type: Database"+"    Status: "+(DBList.contains(add)?"Alive":"No Response")+"</pre>");
 		}
-		return fileData;
+
+		String results = str.toString();
+		int length = results.length();
+		byte[] data = results.getBytes();
+
+		out.println("HTTP/1.1 200 OK");
+		out.println("Server: Java HTTP Server/Shortener : 1.0");
+		out.println("Date: " + new Date());
+		out.println("Content-type: text/html");
+		out.println("Content-length: " + length);
+		out.println();
+		out.flush();
+
+		dataOut.write(data,0,length);
+		dataOut.flush();
 	}
-	
-	// Shutdown server
+
+
+	/**
+	 * Shut down the server
+	 */
 	public void shutdown() {
 		try {
 			this.serverSocket.close();
